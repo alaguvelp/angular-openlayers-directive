@@ -316,7 +316,7 @@ angular.module('openlayers-directive').directive('olCenter', function($log, $loc
                 });
 
                 olScope.$on('$destroy', function() {
-                    map.unByKey(moveEndEventKey);
+                    ol.Observable.unByKey(moveEndEventKey);
                 });
             });
         }
@@ -512,7 +512,13 @@ angular.module('openlayers-directive').directive('olLayer', function($log, $q, o
                         // set visibility
                         if (isDefined(oldProperties) &&
                             isBoolean(properties.visible) &&
-                            properties.visible !== oldProperties.visible || isNewLayer(olLayer)) {
+                            (
+                                properties.visible !== oldProperties.visible ||
+                                isNewLayer(olLayer) ||
+                                // to make sure the underlying ol3 object is always synched
+                                olLayer.getVisible() !== properties.visible
+                            )
+                            ) {
                             olLayer.setVisible(properties.visible);
                         }
 
@@ -657,7 +663,7 @@ angular.module('openlayers-directive').directive('olView', function($log, $q, ol
                 });
 
                 olScope.$on('$destroy', function() {
-                    map.unByKey(rotationEventKey);
+                    ol.Observable.unByKey(rotationEventKey);
                 });
 
             });
@@ -1952,9 +1958,39 @@ angular.module('openlayers-directive').factory('olHelpers', function($q, $log, $
     var createAttribution = function(source) {
         var attributions = [];
         if (isDefined(source.attribution)) {
-            attributions.unshift(new ol.Attribution({html: source.attribution}));
+            // opt-out -> default tries to show an attribution
+            if (!(source.attribution === false)) { // jshint ignore:line
+                // we got some HTML so display that as the attribution
+                attributions.unshift(new ol.Attribution({html: source.attribution}));
+            }
+        } else {
+            // try to infer automatically
+            var attrib = extractAttributionFromSource(source);
+            if (attrib) {
+                attributions.unshift(attrib);
+            }
         }
+
         return attributions;
+    };
+
+    var extractAttributionFromSource = function(source) {
+        if (source && source.type) {
+            var ol3SourceInstance = ol.source[source.type];
+            if (ol3SourceInstance) {
+                // iterate over the object's props and try
+                // to find the attribution one as it differs
+                for (var prop in ol3SourceInstance) {
+                    if (ol3SourceInstance.hasOwnProperty(prop)) {
+                        if (prop.toLowerCase().indexOf('attribution') > -1) {
+                            return ol.source[source.type][prop];
+                        }
+                    }
+                }
+            }
+        }
+
+        return null;
     };
 
     var createGroup = function(name) {
@@ -2108,11 +2144,10 @@ angular.module('openlayers-directive').factory('olHelpers', function($q, $log, $
         setCenter: function(view, projection, newCenter, map) {
 
             if (map && view.getCenter()) {
-                var pan = ol.animation.pan({
+                view.animate({
                     duration: 150,
-                    source: (view.getCenter())
+                    center: view.getCenter()
                 });
-                map.beforeRender(pan);
             }
 
             if (newCenter.projection === projection) {
@@ -2124,11 +2159,11 @@ angular.module('openlayers-directive').factory('olHelpers', function($q, $log, $
         },
 
         setZoom: function(view, zoom, map) {
-            var z = ol.animation.zoom({
+            view.animate({
                 duration: 150,
-                resolution: map.getView().getResolution()
+                resolution: map.getView().getResolution(),
+                zoom: zoom
             });
-            map.beforeRender(z);
             view.setZoom(zoom);
         },
 
