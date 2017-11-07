@@ -17,9 +17,9 @@
   ],
   "license": "MIT",
   "dependencies": {
-      "angular": "^1.4.8",
-      "angular-sanitize": "^1.4.8",
-      "openlayers-prebuilt": "^3.12.1"
+    "angular": "~1.4.8",
+    "angular-sanitize": "~1.4.8",
+    "openlayers": "~4.3.4"
   },
   "devDependencies": {
     "grunt": "~0.4.5",
@@ -52,13 +52,14 @@
     "karma-script-launcher": "~0.1.0",
     "load-grunt-config": "^0.17.1",
     "matchdep": "~0.3.0",
-    "phantomjs": "^1.9.18",
+    "phantomjs": "^2.1.0",
     "protractor": "~2.5.0",
     "publish-latest": "^1.1.2",
     "semantic-release": "^4.3.5"
   },
   "scripts": {
     "test": "grunt build && grunt karma:unit",
+    "test.watch": "grunt build && grunt karma:dev",
     "build": "grunt build",
     "prepublish": "npm run build",
     "postpublish": "publish-latest",
